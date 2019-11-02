@@ -8,6 +8,7 @@
 
 #define KEY_LENGTH  2048
 #define PUB_EXP     3
+#define FILENAME "public_key"
 
 bool simpleSHA1(void *input, unsigned long length, unsigned char* md){
     SHA_CTX context;
@@ -28,6 +29,34 @@ bool simpleSHA1(void *input, unsigned long length, unsigned char* md){
     return true;
 }
 
+int decryptRSA(unsigned char* encrypt,int encrypt_len,unsigned char* decrypt, char *public_key,int pub_key_len){
+    // printf("%s",public_key);
+    int decrypt_len;
+
+    RSA *pub_key = RSA_new();
+    
+    FILE *fp = fopen(FILENAME,"rb");
+    if(fp == NULL){
+        printf("Error opening file\n");
+        fclose(fp);
+        return -1;
+    }
+    if(PEM_read_RSAPublicKey(fp, &pub_key, NULL, NULL) == NULL)
+    {
+        printf("\n%s\n", "Error Reading public key");
+        fclose(fp);
+        return -1;
+    }
+    else{
+        printf("Public key read successfully\n");
+    }
+    fclose(fp);
+    decrypt_len = RSA_public_decrypt(encrypt_len,encrypt,decrypt,pub_key,RSA_PKCS1_PADDING);
+
+    RSA_free(pub_key);
+    return decrypt_len;
+}
+
 int main(){
     size_t pri_len;            // Length of private key
     size_t pub_len;            // Length of public key
@@ -37,7 +66,8 @@ int main(){
     unsigned char   *encrypt = NULL;    // Encrypted message
     unsigned char   *decrypt = NULL;    // Decrypted message
     char   *err;               // Buffer for any error messages
-    unsigned char md[KEY_LENGTH/8];// Buffer for hash digest
+    unsigned char md[SHA_DIGEST_LENGTH];// Buffer for hash digest
+    FILE *public_key_file;
 
     if(!simpleSHA1((void *)msg,strlen(msg), md)){
         printf("Error occurred while hashing message at sender\n");
@@ -73,6 +103,16 @@ int main(){
 
     //Send this public key to client
     pub_key[pub_len] = '\0';
+    public_key_file = fopen(FILENAME,"w");
+    if(!PEM_write_RSAPublicKey(public_key_file, keyPair))
+    {
+        printf("\n%s\n", "Error writing public key");
+    }
+    else{
+        printf("\n%s\n","Successfully wriiten key to PEM file");
+    }
+    fflush(public_key_file);
+    fclose(public_key_file);
 
     //Encryption
 
@@ -88,16 +128,19 @@ int main(){
         fprintf(stderr, "Error encrypting message: %s\n", err);
         goto free_stuff;
     }
+    else{
+        printf("\nSignature Encrypted Successfully\n");
+    }
 
     decrypt = malloc(RSA_size(keyPair));
     int decrypt_len;
 
-    decrypt_len = RSA_public_decrypt(encrypt_len,encrypt,decrypt,keyPair,RSA_PKCS1_PADDING);
+    decrypt_len = decryptRSA(encrypt,encrypt_len,decrypt,pub_key,pub_len);
 
     if(decrypt_len == -1){
         ERR_load_crypto_strings();
         ERR_error_string(ERR_get_error(), err);
-        fprintf(stdout, "Error encrypting message: %s\n", err);
+        fprintf(stdout, "Error decrypting message: %s\n", err);
         goto free_stuff;
     }
     printf("\n%d",decrypt_len);
@@ -105,7 +148,16 @@ int main(){
     for(int i = 0; i < SHA_DIGEST_LENGTH; i++)
             printf("%02x",decrypt[i]);
     decrypt[SHA_DIGEST_LENGTH] = '\0';
-    if(strcmp(md,decrypt) == 0){
+
+    bool flag = true;
+    for(int i = 0; i < SHA_DIGEST_LENGTH; i++){
+        if(md[i] != decrypt[i]){
+            flag = false;
+            printf("\n%d\n",i);
+            break;
+        }
+    }
+    if(flag){
         printf("\nSignature Verification successfull\n");
     }
     else{
