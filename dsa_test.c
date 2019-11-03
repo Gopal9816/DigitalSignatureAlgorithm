@@ -62,7 +62,7 @@ int main(){
     size_t pub_len;            // Length of public key
     char   *pri_key;           // Private key
     char   *pub_key;           // Public key
-    char   msg[] = "Hello World, the sunshine smiles brightly";  // Message to encrypt
+    char   msg[] = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Curabitur sollicitudin laoreet maximus. Orci varius natoque penatibus et magnis dis parturient montes, nascetur ridiculus mus. Proin vitae mi at risus elementum feugiat. Proin ultricies erat metus, quis vestibulum nibh laoreet id. Phasellus a sodales quam. Proin in sapien lacinia, mollis augue eget, lobortis leo. Pellentesque in nibh nec erat mattis rutrum et ac nisl. Vestibulum et ante sodales, suscipit ante condimentum, eleifend purus. Cras efficitur quam sit amet mauris vehicula, vel consectetur lorem interdum. Vestibulum fringilla fermentum blandit. Maecenas sit amet accumsan ante. Vestibulum posuere arcu eget neque auctor vulputate. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Curabitur vulputate dolor non elit porta porta. Etiam vulputate, ligula et facilisis iaculis, est sem dapibus odio, nec commodo ipsum ex a magna. Etiam malesuada, tellus ut maximus molestie, mauris turpis maximus nulla, vel fringilla metus ante quis enim. ";  // Message to encrypt
     unsigned char   *encrypt = NULL;    // Encrypted message
     unsigned char   *decrypt = NULL;    // Decrypted message
     char   *err;               // Buffer for any error messages
