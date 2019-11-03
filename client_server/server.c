@@ -1,14 +1,21 @@
-#include <stdio.h>
+#include <unistd.h> 
+#include <stdio.h> 
+#include <sys/socket.h> 
+#include <stdlib.h> 
+#include <netinet/in.h> 
 #include <openssl/rsa.h>
 #include <openssl/sha.h>
 #include <openssl/pem.h>
 #include <openssl/err.h>
 #include <stdbool.h>
-#include <string.h>
+#include <string.h> 
 
+
+#define PORT 8080 
 #define KEY_LENGTH  2048
 #define PUB_EXP     3
 #define FILENAME "public_key"
+
 
 bool simpleSHA1(void *input, unsigned long length, unsigned char* md){
     SHA_CTX context;
@@ -29,40 +36,22 @@ bool simpleSHA1(void *input, unsigned long length, unsigned char* md){
     return true;
 }
 
-int decryptRSA(unsigned char* encrypt,int encrypt_len,unsigned char* decrypt){//, char *public_key,int pub_key_len
-    // printf("%s",public_key);
-    int decrypt_len;
 
-    RSA *pub_key = RSA_new();
-    
-    FILE *fp = fopen(FILENAME,"rb");
-    if(fp == NULL){
-        printf("Error opening file\n");
-        fclose(fp);
-        return -1;
-    }
-    if(PEM_read_RSAPublicKey(fp, &pub_key, NULL, NULL) == NULL)
-    {
-        printf("\n%s\n", "Error Reading public key");
-        fclose(fp);
-        return -1;
-    }
-    else{
-        printf("Public key read successfully\n");
-    }
-    fclose(fp);
-    decrypt_len = RSA_public_decrypt(encrypt_len,encrypt,decrypt,pub_key,RSA_PKCS1_PADDING);
 
-    RSA_free(pub_key);
-    return decrypt_len;
-}
+int main(int argc, char const *argv[]) 
+{ 
+    int server_fd, new_socket, valread; 
+    struct sockaddr_in address; 
+    int opt = 1; 
+    int addrlen = sizeof(address); 
+    char buffer[1024] = {0}; 
+    char *hello = "Hello from server"; 
 
-int main(){
     size_t pri_len;            // Length of private key
     size_t pub_len;            // Length of public key
     char   *pri_key;           // Private key
     char   *pub_key;           // Public key
-    char   msg[] = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Curabitur sollicitudin laoreet maximus. Orci varius natoque penatibus et magnis dis parturient montes, nascetur ridiculus mus. Proin vitae mi at risus elementum feugiat. Proin ultricies erat metus, quis vestibulum nibh laoreet id. Phasellus a sodales quam. Proin in sapien lacinia, mollis augue eget, lobortis leo. Pellentesque in nibh nec erat mattis rutrum et ac nisl. Vestibulum et ante sodales, suscipit ante condimentum, eleifend purus. Cras efficitur quam sit amet mauris vehicula, vel consectetur lorem interdum. Vestibulum fringilla fermentum blandit. Maecenas sit amet accumsan ante. Vestibulum posuere arcu eget neque auctor vulputate. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Curabitur vulputate dolor non elit porta porta. Etiam vulputate, ligula et facilisis iaculis, est sem dapibus odio, nec commodo ipsum ex a magna. Etiam malesuada, tellus ut maximus molestie, mauris turpis maximus nulla, vel fringilla metus ante quis enim. ";  // Message to encrypt
+    char   msg[] = "Hello World, the sunshine smiles brightly";  // Message to encrypt
     unsigned char   *encrypt = NULL;    // Encrypted message
     unsigned char   *decrypt = NULL;    // Decrypted message
     char   *err;               // Buffer for any error messages
@@ -79,7 +68,7 @@ int main(){
         for(int i = 0; i < SHA_DIGEST_LENGTH; i++)
             printf("%02x",md[i]);
     }
-    
+
     // Generate key pair
     RSA *keyPair = RSA_generate_key(KEY_LENGTH,PUB_EXP,NULL,NULL);
 
@@ -129,40 +118,73 @@ int main(){
         goto free_stuff;
     }
     else{
+        printf("%d",encrypt_len);
+        
         printf("\nSignature Encrypted Successfully\n");
-    }
+    }    
 
-    decrypt = malloc(RSA_size(keyPair));
-    int decrypt_len;
+    int el = encrypt_len;
+    int tmp =  htonl(el);
 
-    decrypt_len = decryptRSA(encrypt,encrypt_len,decrypt);//,pub_key,pub_len
 
-    if(decrypt_len == -1){
-        ERR_load_crypto_strings();
-        ERR_error_string(ERR_get_error(), err);
-        fprintf(stdout, "Error decrypting message: %s\n", err);
-        goto free_stuff;
-    }
-    printf("\n%d",decrypt_len);
-    printf("\nDecrypted Signature\n");
-    for(int i = 0; i < SHA_DIGEST_LENGTH; i++)
-            printf("%02x",decrypt[i]);
-    decrypt[SHA_DIGEST_LENGTH] = '\0';
+       
+    // Creating socket file descriptor 
+    if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0) 
+    { 
+        perror("socket failed"); 
+        exit(EXIT_FAILURE); 
+    } 
+       
+    // Forcefully attaching socket to the port 8080 
+    if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, 
+                                                  &opt, sizeof(opt))) 
+    { 
+        perror("setsockopt"); 
+        exit(EXIT_FAILURE); 
+    } 
+    address.sin_family = AF_INET; 
+    address.sin_addr.s_addr = INADDR_ANY; 
+    address.sin_port = htons( PORT ); 
+       
+    // Forcefully attaching socket to the port 8080 
+    if (bind(server_fd, (struct sockaddr *)&address,  
+                                 sizeof(address))<0) 
+    { 
+        perror("bind failed"); 
+        exit(EXIT_FAILURE); 
+    } 
+    if (listen(server_fd, 3) < 0) 
+    { 
+        perror("listen"); 
+        exit(EXIT_FAILURE); 
+    } 
+    if ((new_socket = accept(server_fd, (struct sockaddr *)&address,  
+                       (socklen_t*)&addrlen))<0) 
+    { 
+        perror("accept"); 
+        exit(EXIT_FAILURE); 
+    } 
+    // valread = read( new_socket , buffer, 1024); 
+    // printf("%s\n",buffer ); 
 
-    bool flag = true;
-    for(int i = 0; i < SHA_DIGEST_LENGTH; i++){
-        if(md[i] != decrypt[i]){
-            flag = false;
-            printf("\n%d\n",i);
-            break;
-        }
-    }
-    if(flag){
-        printf("\nSignature Verification successfull\n");
-    }
-    else{
-        printf("\nSignature Verification failed\n");
-    }
+
+    printf("Sending encrypt_len\n");
+    write(new_socket , &tmp , sizeof(tmp)); 
+    
+    
+    printf("Sending length of encrypted message\n");
+    tmp = RSA_size(keyPair);
+    tmp =htonl(tmp);
+    write(new_socket , &tmp , sizeof(tmp)); 
+
+    printf("Sending Hashed message\n");
+    send(new_socket, md, strlen(md), 0);
+
+    printf("\n%s",encrypt);
+    printf("Sending encrypted message\n");
+    write(new_socket, encrypt, strlen(encrypt));
+    // printf("Hello message sent\n"); 
+
 
     free_stuff:
     RSA_free(keyPair);
@@ -174,6 +196,5 @@ int main(){
     free(decrypt);
     free(err);
 
-    
-    
-}
+    return 0; 
+} 
