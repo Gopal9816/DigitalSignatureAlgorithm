@@ -15,6 +15,26 @@
 #define KEY_LENGTH  2048
 #define PUB_EXP     3
 #define FILENAME "public_key"
+#define MSGLENGTH 1024
+
+bool simpleSHA1(void *input, unsigned long length, unsigned char* md){
+    SHA_CTX context;
+
+    if(!SHA1_Init(&context)){
+        printf("Error initialising context\n");
+        return false;
+    }
+    if(!SHA1_Update(&context,input,length)){
+        printf("Error updating data\n");
+        return false;
+    }
+    if(!SHA1_Final(md,&context)){
+        printf("Error hashing data\n");
+        return false;
+    }
+
+    return true;
+}
 
 
 int decryptRSA(unsigned char* encrypt,int encrypt_len,unsigned char* decrypt){//, char *public_key,int pub_key_len
@@ -52,10 +72,11 @@ int main(int argc, char const *argv[])
     struct sockaddr_in serv_addr; 
     char *hello = "Hello from client"; 
     unsigned char buffer[1024] = {0}; 
-    unsigned char   *encrypt = NULL;    // Decrypted message
+    unsigned char   *encrypt = NULL;    // Encrypted message
     unsigned char   *decrypt = NULL;    // Decrypted message
     char   *err;               // Buffer for any error messages
-    unsigned char md[SHA_DIGEST_LENGTH];// Buffer for hash digest
+    unsigned char msg[MSGLENGTH];// Buffer for store recieved message
+    unsigned char md[SHA_DIGEST_LENGTH];//Buffer to store hashed message
 
     err = malloc(130);
 
@@ -84,22 +105,25 @@ int main(int argc, char const *argv[])
     // printf("Hello message sent\n"); 
     int encrypt_len,msg_size;
 
-    valread = read( sock , &encrypt_len, sizeof(encrypt_len)); 
-    printf("%d\n",ntohl(encrypt_len) ); 
-    encrypt_len = ntohl(encrypt_len);
-    
     valread = read( sock , &msg_size, sizeof(msg_size)); 
-    printf("%d\n",ntohl(msg_size) ); 
-    msg_size = ntohl(msg_size);
+    printf("Length of Message: %d\n",msg_size); 
+    msg_size = msg_size;
 
-    valread = read(sock, md,strlen(md));
-    // printf("%d\n",msg_size);
-    encrypt = malloc(msg_size);
-    decrypt = malloc(msg_size);
+    valread = read( sock , &encrypt_len, sizeof(encrypt_len)); 
+    printf("Length of Signature : %d\n",encrypt_len); 
+    encrypt_len = encrypt_len;
 
-    valread = read(sock, encrypt, strlen(decrypt));
-    printf("%s\n",encrypt);
-    
+    valread = read(sock, msg,msg_size);
+    printf("Message Recieved: %s\n",msg);
+
+    encrypt = malloc(256*sizeof(unsigned char));
+    decrypt = malloc(256*sizeof(unsigned char));
+
+    valread = read(sock, encrypt, encrypt_len);
+    printf("Signature\n");
+    for(int i =0; i < encrypt_len; i++)
+        printf("%02x",encrypt[i]);
+    printf("\n");
     int decrypt_len;
 
     decrypt_len = decryptRSA(encrypt,encrypt_len,decrypt);//,pub_key,pub_len
@@ -110,11 +134,22 @@ int main(int argc, char const *argv[])
         fprintf(stdout, "Error decrypting message: %s\n", err);
         goto free_stuff;
     }
-    printf("\n%d",decrypt_len);
-    printf("\nDecrypted Signature\n");
-    for(int i = 0; i < SHA_DIGEST_LENGTH; i++)
-            printf("%02x",decrypt[i]);
-    decrypt[SHA_DIGEST_LENGTH] = '\0';
+    // printf("\n%d",decrypt_len);
+    // printf("\nDecrypted Signature\n");
+    // for(int i = 0; i < SHA_DIGEST_LENGTH; i++)
+    //         printf("%02x",decrypt[i]);
+    // decrypt[SHA_DIGEST_LENGTH] = '\0';
+
+    if(!simpleSHA1((void *)msg,strlen(msg), md)){
+        printf("Error occurred while hashing message at reciever\n");
+        return -1;
+    }
+    else
+    {
+        printf("Hashing message at reciever successfull\n");
+        // for(int i = 0; i < SHA_DIGEST_LENGTH; i++)
+        //     printf("%02x",md[i]);
+    }
 
     bool flag = true;
     for(int i = 0; i < SHA_DIGEST_LENGTH; i++){

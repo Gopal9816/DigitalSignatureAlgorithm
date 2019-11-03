@@ -15,6 +15,7 @@
 #define KEY_LENGTH  2048
 #define PUB_EXP     3
 #define FILENAME "public_key"
+#define MSGLENGTH 1024
 
 
 bool simpleSHA1(void *input, unsigned long length, unsigned char* md){
@@ -45,19 +46,22 @@ int main(int argc, char const *argv[])
     int opt = 1; 
     int addrlen = sizeof(address); 
     char buffer[1024] = {0}; 
-    char *hello = "Hello from server"; 
 
     size_t pri_len;            // Length of private key
     size_t pub_len;            // Length of public key
     char   *pri_key;           // Private key
     char   *pub_key;           // Public key
-    char   msg[] = "Hello World, the sunshine smiles brightly";  // Message to encrypt
+    char   msg[MSGLENGTH];  // Message to encrypt
     unsigned char   *encrypt = NULL;    // Encrypted message
     unsigned char   *decrypt = NULL;    // Decrypted message
     char   *err;               // Buffer for any error messages
     unsigned char md[SHA_DIGEST_LENGTH];// Buffer for hash digest
     FILE *public_key_file;
 
+    printf("Enter message to be sent\n");
+    scanf("%[^\n]%*c",msg);
+    printf("msg_len: %d\n",strlen(msg));
+    // Hashing th message
     if(!simpleSHA1((void *)msg,strlen(msg), md)){
         printf("Error occurred while hashing message at sender\n");
         return -1;
@@ -65,14 +69,13 @@ int main(int argc, char const *argv[])
     else
     {
         printf("Hashing at sender successfull\n");
-        for(int i = 0; i < SHA_DIGEST_LENGTH; i++)
-            printf("%02x",md[i]);
+        // for(int i = 0; i < SHA_DIGEST_LENGTH; i++)
+        //     printf("%02x",md[i]);
     }
+    
+    RSA *keyPair = RSA_generate_key(KEY_LENGTH,PUB_EXP,NULL,NULL);// Generate key pair
 
-    // Generate key pair
-    RSA *keyPair = RSA_generate_key(KEY_LENGTH,PUB_EXP,NULL,NULL);
-
-    // To get the C-string PEM Format
+    // To get the C-string PEM Format from RSA Object
     BIO *pri = BIO_new(BIO_s_mem());
     BIO *pub = BIO_new(BIO_s_mem());
 
@@ -118,16 +121,15 @@ int main(int argc, char const *argv[])
         goto free_stuff;
     }
     else{
-        printf("%d",encrypt_len);
+        // printf("%d",encrypt_len);
         
         printf("\nSignature Encrypted Successfully\n");
+        // for(int i =0; i < encrypt_len; i++)
+        //     printf("%02x",encrypt[i]);
+        // printf("\n");
     }    
 
-    int el = encrypt_len;
-    int tmp =  htonl(el);
-
-
-       
+          
     // Creating socket file descriptor 
     if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0) 
     { 
@@ -157,32 +159,35 @@ int main(int argc, char const *argv[])
     { 
         perror("listen"); 
         exit(EXIT_FAILURE); 
-    } 
+    }
+    else{
+        printf("Server listening on port 8080\n");
+    }
     if ((new_socket = accept(server_fd, (struct sockaddr *)&address,  
                        (socklen_t*)&addrlen))<0) 
     { 
         perror("accept"); 
         exit(EXIT_FAILURE); 
     } 
+    else{
+        printf("Accepting new connection\n");
+    }
     // valread = read( new_socket , buffer, 1024); 
     // printf("%s\n",buffer ); 
 
+    printf("Sending length of message\n");
+    int msg_len = strlen(msg);
+    write(new_socket , &msg_len , sizeof(msg_len)); 
 
-    printf("Sending encrypt_len\n");
-    write(new_socket , &tmp , sizeof(tmp)); 
-    
-    
-    printf("Sending length of encrypted message\n");
-    tmp = RSA_size(keyPair);
-    tmp =htonl(tmp);
-    write(new_socket , &tmp , sizeof(tmp)); 
+    printf("Sending signature length\n");
+    write(new_socket , &encrypt_len , sizeof(encrypt_len)); 
 
-    printf("Sending Hashed message\n");
-    send(new_socket, md, strlen(md), 0);
+    printf("Sending message\n");
+    send(new_socket, msg, msg_len, 0);
 
-    printf("\n%s",encrypt);
-    printf("Sending encrypted message\n");
-    write(new_socket, encrypt, strlen(encrypt));
+    // printf("\n%s",encrypt);
+    printf("Sending signature\n");
+    write(new_socket,(void *)encrypt, encrypt_len);
     // printf("Hello message sent\n"); 
 
 
