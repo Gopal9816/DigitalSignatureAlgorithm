@@ -29,7 +29,7 @@ bool simpleSHA1(void *input, unsigned long length, unsigned char* md){
     return true;
 }
 
-int decryptRSA(unsigned char* encrypt,int encrypt_len,unsigned char* decrypt, char *public_key,int pub_key_len){
+int decryptRSA(unsigned char* encrypt,int encrypt_len,unsigned char* decrypt){//, char *public_key,int pub_key_len
     // printf("%s",public_key);
     int decrypt_len;
 
@@ -135,7 +135,7 @@ int main(){
     decrypt = malloc(RSA_size(keyPair));
     int decrypt_len;
 
-    decrypt_len = decryptRSA(encrypt,encrypt_len,decrypt,pub_key,pub_len);
+    decrypt_len = decryptRSA(encrypt,encrypt_len,decrypt);//,pub_key,pub_len
 
     if(decrypt_len == -1){
         ERR_load_crypto_strings();
