@@ -82,19 +82,21 @@ int main(int argc, char const *argv[])
     PEM_write_bio_RSAPrivateKey(pri,keyPair,NULL,NULL,0,NULL,NULL);
     PEM_write_bio_RSAPublicKey(pub,keyPair);
 
+    // key length
     pri_len = BIO_pending(pri);
     pub_len = BIO_pending(pub);
 
-    pri_key = malloc(pri_len+1);
+    // Allocating memory for keys
+    pri_key = malloc(pri_len+1); 
     pub_key = malloc(pub_len+1);
 
     BIO_read(pri,pri_key,pri_len);
     BIO_read(pub,pub_key,pub_len);
 
     pri_key[pri_len] = '\0';
-
-    //Send this public key to client
     pub_key[pub_len] = '\0';
+    
+    //Send this public key to client
     public_key_file = fopen(FILENAME,"w");
     if(!PEM_write_RSAPublicKey(public_key_file, keyPair))
     {

@@ -113,13 +113,13 @@ int main(int argc, char const *argv[])
     printf("Length of Signature : %d\n",encrypt_len); 
     encrypt_len = encrypt_len;
 
-    valread = read(sock, msg,msg_size);
+    valread = read(sock, msg,msg_size); // Reading Message
     printf("Message Recieved: %s\n",msg);
 
     encrypt = malloc(256*sizeof(unsigned char));
     decrypt = malloc(256*sizeof(unsigned char));
 
-    valread = read(sock, encrypt, encrypt_len);
+    valread = read(sock, encrypt, encrypt_len); // Reading Signature
     printf("Signature\n");
     for(int i =0; i < encrypt_len; i++)
         printf("%02x",encrypt[i]);
